@@ -1,6 +1,6 @@
 pkgbase = asusctl-git
 	pkgdesc = Asus laptop control utilities
-	pkgver = 4.7.0.RC2.r0.g8be0e7e
+	pkgver = 6.0.11.r10.g5ab9642
 	pkgrel = 1
 	url = https://gitlab.com/asus-linux/asusctl
 	arch = x86_64
@@ -14,6 +14,8 @@ pkgbase = asusctl-git
 	makedepends = at-spi2-core
 	makedepends = gtk3
 	makedepends = sdl2
+	makedepends = seatd
+	makedepends = libinput
 	depends = libusb
 	depends = udev
 	depends = systemd

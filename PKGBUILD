@@ -1,7 +1,7 @@
 # Maintainer: Static_Rocket
 
 pkgname=asusctl-git
-pkgver=4.7.0.RC2.r0.g8be0e7e
+pkgver=6.0.11.r10.g5ab9642
 pkgrel=1
 pkgdesc="Asus laptop control utilities"
 arch=('x86_64')
@@ -12,7 +12,7 @@ optdepends=(
 	'libappindicator-gtk3: tray icon'
 	'gtk3: control center ui'
 )
-makedepends=('git' 'cargo' 'clang' 'cmake' 'pango' 'gdk-pixbuf2' 'at-spi2-core' 'gtk3' 'sdl2')
+makedepends=('git' 'cargo' 'clang' 'cmake' 'pango' 'gdk-pixbuf2' 'at-spi2-core' 'gtk3' 'sdl2' 'seatd' 'libinput')
 provides=('asusctl')
 conflicts=('asusctl')
 source=('git+https://gitlab.com/asus-linux/asusctl.git')
