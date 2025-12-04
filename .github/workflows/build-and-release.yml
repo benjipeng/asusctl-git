@@ -50,32 +50,34 @@ jobs:
 
       # Build the package using Arch Linux container
       - name: Build PKGBUILD
-        uses: docker://archlinux:latest
-        with:
-          entrypoint: /bin/bash
-          args: -c "
-            set -ex &&
-            echo 'Setting up Arch Linux environment...' &&
-            pacman -Syu --noconfirm &&
-            pacman -S --noconfirm base-devel git sudo &&
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            archlinux:latest \
+            /bin/bash -c '
+              set -ex
+              echo "Setting up Arch Linux environment..."
+              pacman -Syu --noconfirm
+              pacman -S --noconfirm base-devel git sudo
 
-            echo 'Creating builder user...' &&
-            useradd -m builder &&
-            echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers &&
+              echo "Creating builder user..."
+              useradd -m builder
+              echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-            echo 'Copying PKGBUILD to builder home...' &&
-            cp -r /github/workspace /home/builder/build &&
-            chown -R builder:builder /home/builder/build &&
+              echo "Copying PKGBUILD to builder home..."
+              cp -r /workspace /home/builder/build
+              chown -R builder:builder /home/builder/build
 
-            echo 'Building package as builder user...' &&
-            cd /home/builder/build &&
-            su - builder -c 'cd /home/builder/build && makepkg --noconfirm --syncdeps --skippgpcheck --nocheck' &&
+              echo "Building package as builder user..."
+              cd /home/builder/build
+              su - builder -c "cd /home/builder/build && makepkg --noconfirm --syncdeps --skippgpcheck --nocheck"
 
-            echo 'Copying built packages back...' &&
-            cp /home/builder/build/*.pkg.tar.zst /github/workspace/ || true &&
+              echo "Copying built packages back..."
+              cp /home/builder/build/*.pkg.tar.zst /workspace/ || true
 
-            echo 'Build completed successfully!'
-            "
+              echo "Build completed successfully!"
+            '
 
       - name: List built packages
         run: |
