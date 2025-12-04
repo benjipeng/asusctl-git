@@ -1,0 +1,157 @@
+name: Build and Release AUR Package
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch:
+
+  # Weekly builds to catch upstream updates
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+
+  # Build on version tags
+  push:
+    tags:
+      - 'v*'
+      - 'r*'
+
+  # Build on main branch pushes (for testing)
+  push:
+    branches:
+      - main
+    paths:
+      - 'PKGBUILD'
+      - '.SRCINFO'
+      - '.github/workflows/build-and-release.yml'
+
+jobs:
+  build:
+    name: Build asusctl-git Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Critical: Free up disk space for large Rust compilation
+      - name: Maximize build disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # Remove unnecessary tools
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+
+      - name: Check available disk space
+        run: df -h
+
+      # Build the package using Arch Linux container
+      - name: Build PKGBUILD
+        uses: docker://archlinux:latest
+        with:
+          entrypoint: /bin/bash
+          args: -c "
+            set -ex &&
+            echo 'Setting up Arch Linux environment...' &&
+            pacman -Syu --noconfirm &&
+            pacman -S --noconfirm base-devel git sudo &&
+
+            echo 'Creating builder user...' &&
+            useradd -m builder &&
+            echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers &&
+
+            echo 'Copying PKGBUILD to builder home...' &&
+            cp -r /github/workspace /home/builder/build &&
+            chown -R builder:builder /home/builder/build &&
+
+            echo 'Building package as builder user...' &&
+            cd /home/builder/build &&
+            su - builder -c 'cd /home/builder/build && makepkg --noconfirm --syncdeps --skippgpcheck --nocheck' &&
+
+            echo 'Copying built packages back...' &&
+            cp /home/builder/build/*.pkg.tar.zst /github/workspace/ || true &&
+
+            echo 'Build completed successfully!'
+            "
+
+      - name: List built packages
+        run: |
+          echo "Built packages:"
+          ls -lh *.pkg.tar.zst || echo "No packages found"
+
+      # Upload as artifact (90-day retention)
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asusctl-git-package
+          path: '*.pkg.tar.zst'
+          if-no-files-found: error
+          retention-days: 90
+
+      # Extract version information for release
+      - name: Extract package info
+        id: pkginfo
+        run: |
+          PKG_FILE=$(ls *.pkg.tar.zst | head -n1)
+          PKG_NAME=$(echo "$PKG_FILE" | sed 's/\.pkg\.tar\.zst$//')
+          PKG_VERSION=$(echo "$PKG_NAME" | grep -oP '(?<=-)[0-9]+\.[0-9]+\.[0-9]+\.r[0-9]+\.[a-f0-9]+' || echo "latest")
+
+          echo "package_file=$PKG_FILE" >> $GITHUB_OUTPUT
+          echo "package_name=$PKG_NAME" >> $GITHUB_OUTPUT
+          echo "package_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Package: $PKG_NAME"
+          echo "Version: $PKG_VERSION"
+          echo "File: $PKG_FILE"
+
+      # Create or update GitHub Release
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Use extracted version or fallback to date-based tag
+          tag_name: ${{ steps.pkginfo.outputs.package_version != '' && format('v{0}', steps.pkginfo.outputs.package_version) || format('build-{0}', github.run_number) }}
+          name: asusctl-git ${{ steps.pkginfo.outputs.package_version || github.run_number }}
+          body: |
+            ## asusctl-git Arch Linux Package
+
+            **Automated build from upstream:** https://gitlab.com/asus-linux/asusctl
+
+            ### Installation
+
+            ```bash
+            # Download the package
+            wget ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.pkginfo.outputs.package_version != '' && format('v{0}', steps.pkginfo.outputs.package_version) || format('build-{0}', github.run_number) }}/${{ steps.pkginfo.outputs.package_file }}
+
+            # Install with pacman
+            sudo pacman -U ${{ steps.pkginfo.outputs.package_file }}
+            ```
+
+            ### Package Information
+            - **Version:** ${{ steps.pkginfo.outputs.package_version }}
+            - **Architecture:** x86_64
+            - **Built on:** ${{ github.run_id }}
+            - **Commit:** ${{ github.sha }}
+
+            ### What's Included
+            - `asusctl` - CLI tool for ASUS laptop control
+            - `asusd` - System daemon for hardware management
+            - `rog-control-center` - GUI control application
+
+            ### Dependencies
+            Runtime: `libusb`, `udev`, `systemd`
+            Optional: `libappindicator-gtk3`, `gtk3` (for GUI)
+
+            ---
+            🤖 Built automatically with GitHub Actions
+          files: |
+            *.pkg.tar.zst
+          draft: false
+          prerelease: false
+          # Update existing release if it exists
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
