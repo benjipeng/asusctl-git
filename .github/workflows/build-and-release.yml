@@ -25,6 +25,10 @@ jobs:
     name: Build asusctl-git Package
     runs-on: ubuntu-latest
 
+    # Required permissions for creating releases
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
