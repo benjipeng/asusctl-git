@@ -8,14 +8,11 @@ on:
   schedule:
     - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
 
-  # Build on version tags
+  # Build on version tags or main branch changes
   push:
     tags:
       - 'v*'
       - 'r*'
-
-  # Build on main branch pushes (for testing)
-  push:
     branches:
       - main
     paths:
