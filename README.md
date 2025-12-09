@@ -1,6 +1,6 @@
 # asusctl-git
 
-Pre-built Arch Linux packages for [asusctl](https://gitlab.com/asus-linux/asusctl) - a control daemon and CLI tool for ASUS ROG laptops on Linux.
+Pre-built `Arch Linux` packages for [asusctl](https://gitlab.com/asus-linux/asusctl) - a control daemon and CLI tool for ASUS ROG laptops on Linux.
 
 This repository automatically builds the latest `asusctl-git` package from source using GitHub Actions and publishes ready-to-install packages.
 
